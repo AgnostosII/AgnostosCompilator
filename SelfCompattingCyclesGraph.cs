@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 
 
-namespace AgnostosCompilators{
+namespace AgnostosCompilator{
     public class SelfCompattingCyclesGraph<T>{
         public override string ToString(){
             StringBuilder sb = new StringBuilder();

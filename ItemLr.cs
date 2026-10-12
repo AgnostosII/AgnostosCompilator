@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace AgnostosCompilators{
+namespace AgnostosCompilator{
     internal abstract class ItemLr<N,T>where N:Enum where T:Enum{
         private AbstractGrammarRule<N,T> _rule; internal AbstractGrammarRule<N,T> rule => _rule;
         private int count;

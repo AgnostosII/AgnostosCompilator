@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 
 
-namespace AgnostosCompilators{
+namespace AgnostosCompilator{
     public enum ParserType{LR0,SLR,LALR,LR1}
 
     
@@ -119,25 +119,23 @@ namespace AgnostosCompilators{
                 foreach(AbstractGrammarRule<N,T> R in startingRulesForSymbols[S]){
                     if(R.emptyProduction) continue;
                     for(int i=1;i<R.symbolNumber;++i){
-                        Symbol<N,T> precedente=R.getSymbol(i-1); if(precedente.isTerminal) continue;
-                        Symbol<N,T> successivo=R.getSymbol(i);
+                        Symbol<N,T> previous = R.getSymbol(i-1); if(previous.isTerminal) continue;
+                        Symbol<N,T> next = R.getSymbol(i);
                         
-                        _follow[precedente].UnionWith(first(successivo));
-                        if(successivo.isTerminal || (!canGenerateNull(successivo))) continue;
-                        graph.addBow(successivo,precedente);
+                        _follow[previous].UnionWith(first(next));
+                        if(next.isTerminal || (!canGenerateNull(next))) continue;
+                        graph.addBow(next,previous);
                     }
                     
-                    Symbol<N,T> ultimo=R.getSymbol(R.symbolNumber-1);
-                    if(!ultimo.isTerminal){
-                        graph.addBow(R.sauce,ultimo);
-                    }
+                    Symbol<N,T> last = R.getSymbol(R.symbolNumber-1);
+                    if(!last.isTerminal) graph.addBow(R.sauce,last);
                 }
             }
-            graph.executeFuncForEachMacronode((nodi)=>{
-                ISet<Symbol<N,T>> unione = new HashSet<Symbol<N,T>>();
-                foreach(Symbol<N,T> S in nodi){
-                    unione.UnionWith(_follow[S]);
-                    _follow[S] = unione;
+            graph.executeFuncForEachMacronode((nodes)=>{
+                ISet<Symbol<N,T>> union = new HashSet<Symbol<N,T>>();
+                foreach(Symbol<N,T> S in nodes){
+                    union.UnionWith(_follow[S]);
+                    _follow[S] = union;
                 }
             });
             graph.executeFuncForEachBow((a,b)=>{
@@ -199,11 +197,6 @@ namespace AgnostosCompilators{
                     }
                 }
             }
-            /*StringBuilder daStampare = new StringBuilder(" simboli che possono generare il nulla:\n ");
-            foreach(Simbolo<N,T> S in simboliChePossonoGenerareIlNulla){
-                daStampare.Append(" "+S.ToString());
-            }
-            UnityEngine.Debug.Log(daStampare.ToString());*/
         }
         
         
@@ -222,40 +215,30 @@ namespace AgnostosCompilators{
             foreach(N n in Enum.GetValues(typeof(N))) notUsedymbolsInfo.Add(new Symbol<N,T>(n));
             foreach(T t in Enum.GetValues(typeof(T))) notUsedymbolsInfo.Add(new Symbol<N,T>(t));
             
-            ControlledList<Symbol<N, T>> verified = new ControlledList<Symbol<N,T>>();
-            verified.add(Symbol<N,T>.startState);
-            while(verified.stillToVerify){
-                Symbol<N, T> S = verified.pop();
+            ControlledList<Symbol<N, T>> verifiedSymbols = new ControlledList<Symbol<N,T>>();
+            verifiedSymbols.add(Symbol<N,T>.startState);
+            while(verifiedSymbols.stillToVerify){
+                Symbol<N, T> S = verifiedSymbols.pop();
                 if(!startingRulesForSymbols.ContainsKey(S)){
                     throw new Exception("il simbolo "+S.ToString()+" non ha nessuna regola da cui parte");
                 }
                 foreach(AbstractGrammarRule<N,T> R in startingRulesForSymbols[S]){
                     for(int i=0;i<R.symbolNumber;++i){
-                        Symbol<N,T> verificato = R.getSymbol(i);
-                        notUsedymbolsInfo.Remove(verificato);
-                        if(!verificato.isTerminal){
-                            verified.add(verificato);
-                        }
+                        Symbol<N,T> verified = R.getSymbol(i);
+                        notUsedymbolsInfo.Remove(verified);
+                        if(!verified.isTerminal) verifiedSymbols.add(verified);
                     }
                 }
             }
-            if(verified.length<startingRulesForSymbols.Keys.Count){
-                List<Symbol<N,T>> daEliminare = new List<Symbol<N,T>>();
+            if(verifiedSymbols.length<startingRulesForSymbols.Keys.Count){
+                List<Symbol<N,T>> toDelete = new List<Symbol<N,T>>();
                 foreach(Symbol<N,T> S in startingRulesForSymbols.Keys){
-                    if(!verified.contains(S)) daEliminare.Add(S);
+                    if(!verifiedSymbols.contains(S)) toDelete.Add(S);
                 }
-                foreach(Symbol<N,T> S in daEliminare){
+                foreach(Symbol<N,T> S in toDelete){
                     startingRulesForSymbols.Remove(S);
                 }
             }
-            /*if(verificati.dimensione<regoleChePartonoPerOgniSimbolo.Keys.Count){
-                StringBuilder lista = new StringBuilder();
-                foreach(Simbolo<N,T> S in regoleChePartonoPerOgniSimbolo.Keys){
-                    if(!verificati.contiene(S)) lista.Append(S.ToString()+", ");
-                }
-                throw new Exception("ci sono regole pendenti: "+lista.ToString());
-            }*/
-            
         }
 
 
@@ -311,103 +294,101 @@ namespace AgnostosCompilators{
                 //stampaFirstFollow();
             }
 
-            ControlledList<itemStateLr<N,T>> stati = new ControlledList<itemStateLr<N,T>>(); //creazione del primo stato
-            stati.add( new itemStateLr<N,T>(itemIniziale(startingRule),0,this) );
-            while(stati.stillToVerify){ //creazione degli stati a seguire, contenenti gli item Lr
-                itemStateLr<N, T> corrente = stati.pop();
-                foreach(Symbol<N,T> S in corrente.validSymbols){
-                    ISet<ItemLr<N,T>> nuovoKernel = corrente.itemPassati(S);
-                    bool daTrovare = true;
-                    foreach(itemStateLr<N,T> stato in stati){
-                        if(stato==nuovoKernel){
-                            corrente.transictions.Add(S,stato);
-                            daTrovare = false;
+            ControlledList<itemStateLr<N,T>> states = new ControlledList<itemStateLr<N,T>>(); //creazione del primo stato
+            states.add( new itemStateLr<N,T>(itemIniziale(startingRule),0,this) );
+            while(states.stillToVerify){ //creation of following states
+                itemStateLr<N, T> current = states.pop();
+                foreach(Symbol<N,T> S in current.validSymbols){
+                    ISet<ItemLr<N,T>> newKernel = current.getKernel(S);
+                    bool toFind = true;
+                    foreach(itemStateLr<N,T> state in states){
+                        if(state==newKernel){
+                            current.transictions.Add(S,state);
+                            toFind = false;
                             break;
                         }
                     }
-                    if(daTrovare){
-                        itemStateLr<N,T> nuovo = new itemStateLr<N,T>(nuovoKernel,stati.length,this);
-                        stati.add(nuovo);
-                        corrente.transictions.Add(S,nuovo);
+                    if(toFind){
+                        itemStateLr<N,T> newItem = new itemStateLr<N,T>(newKernel,states.length,this);
+                        states.add(newItem);
+                        current.transictions.Add(S,newItem);
                     }
                 }
             }
-            int l = stati.Count();
-            int[] indiceStessoStato=new int[l];
-            int nStati = l;
+            int l = states.Count();
+            int[] stateIndex = new int[l];
+            int nStates = l;
             if(parserType==ParserType.LALR){
-                List<int> kernelOriginali = new List<int>();
+                List<int> originalKernels = new List<int>();
                 for(int i=0;i<l;++i){
-                    bool daControllare = true;
-                    foreach(int indice in kernelOriginali){
-                        if(stati[i].equalsIfLr0(stati[indice])){
-                            daControllare = false;
-                            indiceStessoStato[i] = indice;
+                    bool toControl = true;
+                    foreach(int index in originalKernels){
+                        if(states[i].equalsIfLr0(states[index])){
+                            toControl = false;
+                            stateIndex[i] = index;
                             break;
                         }
                     }
-                    if(daControllare){
-                        indiceStessoStato[i] = kernelOriginali.Count;
-                        kernelOriginali.Add(i);
+                    if(toControl){
+                        stateIndex[i] = originalKernels.Count;
+                        originalKernels.Add(i);
                     }
                 }
-                nStati = kernelOriginali.Count;
+                nStates = originalKernels.Count;
             }else{
-                for(int i=0;i<l;++i){
-                    indiceStessoStato[i] = i;
-                }
+                for(int i=0;i<l;++i) stateIndex[i] = i;
             }
             
-        //da questo momento in poi vi è la creazione della tabella
+        //from this moment the table will be created
 
             actionTable = new Dictionary<Symbol<N,T>, Action<N,T>>[l];
             goToTable = new Dictionary<Symbol<N,T>, int>[l];
-            for(int i=0;i<nStati;++i){
+            for(int i=0;i<nStates;++i){
                 actionTable[i] = new Dictionary<Symbol<N,T>,Action<N,T>>();
                 goToTable[i]   = new Dictionary<Symbol<N,T>,int>();
             }
 
             for(int i=0;i<l;++i){
-                int k = indiceStessoStato[i];
+                int k = stateIndex[i];
 
-                itemStateLr<N,T> corrente = stati[i];
-                if(corrente.index != i) throw new Exception("indice spattato");
+                itemStateLr<N,T> current = states[i];
+                if(current.index != i) throw new Exception("wrong index");
                 
-                foreach(ItemLr<N,T> I in corrente.itemTerminati){
+                foreach(ItemLr<N,T> I in current.terminatedItems){
                     if(I.rule is StartingGrammarRule<N,T>){
-                        inserisciInTabella(actionTable[k],Symbol<N,T>.finalChar,new Accept<N,T>());
+                        insertIntoTable(actionTable[k],Symbol<N,T>.finalChar,new Accept<N,T>());
                     }
                     if(I.rule is GrammarRule<N,T> R){
-                        if(this.parserType == ParserType.LR0){ //inserisci in tutta la riga
+                        if(this.parserType == ParserType.LR0){ //insert into the entire row
                             foreach(T t in Enum.GetValues(typeof(T))){
-                                inserisciInTabella(actionTable[k], new Symbol<N, T>(t), new Reduce<N, T>(R));
+                                insertIntoTable(actionTable[k], new Symbol<N, T>(t), new Reduce<N, T>(R));
                             }
-                            inserisciInTabella(actionTable[k], Symbol<N, T>.finalChar,new Reduce<N, T>(R));
+                            insertIntoTable(actionTable[k], Symbol<N, T>.finalChar,new Reduce<N, T>(R));
                             
-                        }else if(this.parserType == ParserType.SLR){ //inserisci nel follow del non terminale fonte della regola
+                        }else if(this.parserType == ParserType.SLR){ //inserto into the follow of the non terminal, source of the tule
                             foreach(Symbol<N, T> S in follow(R.sauce)){
-                                inserisciInTabella(actionTable[k], S, new Reduce<N, T>(R));
+                                insertIntoTable(actionTable[k], S, new Reduce<N, T>(R));
                             }
                             
-                        }else if(this.parserType == ParserType.LR1 || this.parserType == ParserType.LALR){ //inserisci nel lookup
-                            inserisciInTabella(actionTable[k], (I as ItemLr1<N, T>).lookup,new Reduce<N, T>(R));
+                        }else if(this.parserType == ParserType.LR1 || this.parserType == ParserType.LALR){ //insert into the lookup
+                            insertIntoTable(actionTable[k], (I as ItemLr1<N, T>).lookup,new Reduce<N, T>(R));
                             
                         }else{
                             throw new NotImplementedException();
                         }
                     }
                 }
-                foreach(Symbol<N,T> S in corrente.validSymbols){
-                    int indiceDiArrivo=indiceStessoStato[corrente.transictions[S].index];
+                foreach(Symbol<N,T> S in current.validSymbols){
+                    int index = stateIndex[current.transictions[S].index];
                     if(S.isTerminal){
-                        inserisciInTabella(actionTable[k],S,new Shift<N,T>(indiceDiArrivo));
+                        insertIntoTable(actionTable[k],S,new Shift<N,T>(index));
                     }else{
-                        inserisciInTabella(goToTable[k],S,indiceDiArrivo);
+                        insertIntoTable(goToTable[k],S,index);
                     }
                 }
             }
             if(foundConflicts!=null){
-                throw new Conflict(string.Join("\n",foundConflicts));
+                throw new ConflictException(string.Join("\n",foundConflicts));
             }
             clearCache();
         }
@@ -422,82 +403,82 @@ namespace AgnostosCompilators{
             if(parserType==ParserType.LALR||parserType==ParserType.LR1) return new ItemLr1<N,T>(inizio,Symbol<N,T>.finalChar);
             throw new NotImplementedException();
         }
-        private void inserisciInTabella<B>(Dictionary<Symbol<N,T>,B> rigaTabella,Symbol<N,T> chiave,B nuovo){
+        private void insertIntoTable<B>(Dictionary<Symbol<N,T>,B> row,Symbol<N,T> key,B element){
             if(
-                rigaTabella.ContainsKey(chiave) && !(parserType==ParserType.LALR && nuovo.Equals(rigaTabella[chiave])) 
+                row.ContainsKey(key) && !(parserType==ParserType.LALR && element.Equals(row[key])) 
             ){
-                string primo=string.Empty;
-                if (rigaTabella[chiave] is Shift<N, T>) primo = "shift";
-                else if (rigaTabella[chiave] is Reduce<N, T>) primo = "reduce";
-                primo+=" {"+rigaTabella[chiave].ToString()+"}";
+                string first = string.Empty;
+                if (row[key] is Shift<N, T>) first = "shift";
+                else if (row[key] is Reduce<N, T>) first = "reduce";
+                first+=" {"+row[key].ToString()+"}";
 
-                string secondo=string.Empty;
-                if(nuovo is Shift<N,T>) secondo="shift";
-                else if(nuovo is Reduce<N,T>) secondo="reduce";
-                secondo+=" {"+nuovo.ToString()+"}";
+                string second = string.Empty;
+                if(element is Shift<N,T>) second="shift";
+                else if(element is Reduce<N,T>) second="reduce";
+                second+=" {"+element.ToString()+"}";
                 
                 if(foundConflicts==null) foundConflicts=new List<string>();
-                foundConflicts.Add("conflitto " + primo + "-" + secondo + " sul simbolo " + chiave.ToString());
+                foundConflicts.Add($"conflict {first}-{second} on symbol {key}");
             }
-            rigaTabella[chiave] = nuovo;
+            row[key] = element;
         }
 
         public override string ToString(){
-            StringBuilder ritorno = new StringBuilder("     ");
+            StringBuilder sb = new StringBuilder("     ");
             foreach(T t in Enum.GetValues(typeof(T))){
-                ritorno.Append("| "+t.ToString().PadLeft(lengthColumn)+" ");
+                sb.Append("| "+t.ToString().PadLeft(lengthColumn)+" ");
             }
-            ritorno.Append("|  "+"$".PadLeft(lengthColumn)+" |");
+            sb.Append("|  "+"$".PadLeft(lengthColumn)+" |");
             foreach(N nt in Enum.GetValues(typeof(N))){
-                ritorno.Append("| "+nt.ToString().PadLeft(lengthColumn)+" ");
+                sb.Append("| "+nt.ToString().PadLeft(lengthColumn)+" ");
             }
             //ritorno.Append(string.Empty);
             for(int i=0;i<actionTable.Length;++i){
-                ritorno.Append("\n"+i.ToString().PadLeft(4)+" |");
-                Dictionary<Symbol<N,T>, Action<N,T>> rigaSinistra=actionTable[i];
+                sb.Append("\n"+i.ToString().PadLeft(4)+" |");
+                Dictionary<Symbol<N,T>, Action<N,T>> leftRow = actionTable[i];
                 string temp;
                 foreach(T t in Enum.GetValues(typeof(T))){
                     try{
-                        temp = rigaSinistra[new Symbol<N,T>(t)].ToString();
+                        temp = leftRow[new Symbol<N,T>(t)].ToString();
                     }catch(KeyNotFoundException){
                         temp = " ";
                     }
-                    ritorno.Append(" "+temp.PadLeft(lengthColumn)+"  ");
+                    sb.Append(" "+temp.PadLeft(lengthColumn)+"  ");
                 }
                 try{
-                    temp = rigaSinistra[Symbol<N,T>.finalChar].ToString();
+                    temp = leftRow[Symbol<N,T>.finalChar].ToString();
                 }catch(KeyNotFoundException){
                     temp = " ";
                 }
-                ritorno.Append("  "+temp.PadLeft(lengthColumn)+" ||");
-                Dictionary<Symbol<N,T>, int> rigaDestra=goToTable[i];
+                sb.Append("  "+temp.PadLeft(lengthColumn)+" ||");
+                Dictionary<Symbol<N,T>, int> rightRow = goToTable[i];
                 foreach(N nt in Enum.GetValues(typeof(N))){
                     try{
-                        temp = rigaDestra[new Symbol<N,T>(nt)].ToString();
+                        temp = rightRow[new Symbol<N,T>(nt)].ToString();
                     }catch(KeyNotFoundException){
                         temp = " ";
                     }
-                    ritorno.Append(" "+temp.PadLeft(lengthColumn)+"  ");
+                    sb.Append(" "+temp.PadLeft(lengthColumn)+"  ");
                 }
             }
 
 
-            return ritorno.ToString();
+            return sb.ToString();
         }
         
         
         
         
-        private Action<N,T> prelevaDallaTabella(int i,T token){
+        private Action<N,T> pickFromTable(int i,T token){
             try{
                 return actionTable[i][new Symbol<N, T>(token)];
-            }catch(KeyNotFoundException){ throw new SyntaxErrorException("simbolo non previsto: "+token.ToString()); }
+            }catch(KeyNotFoundException){ throw new SyntaxErrorException($"Unexpected token: {token}"); }
         }
 
-        private Action<N,T> prelevaUltimo(int i){
+        private Action<N,T> pickLast(int i){
             try{
                 return actionTable[i][Symbol<N, T>.finalChar];
-            }catch(KeyNotFoundException){ throw new SyntaxErrorException("fine prematura"); }
+            }catch(KeyNotFoundException){ throw new SyntaxErrorException("Unexpected end"); }
         }
 
 
@@ -514,20 +495,20 @@ namespace AgnostosCompilators{
 
 
 
-        public object parse(IEnumerable<MacroToken<T>> sorgente){
-            Stack<int> stati = new Stack<int>();
-            stati.Push(0);
-            Stack<Symbol<N,T>> simboli = new Stack<Symbol<N,T>>();
+        public object parse(IEnumerable<MacroToken<T>> source){
+            Stack<int> states = new Stack<int>();
+            states.Push(0);
+            Stack<Symbol<N,T>> symbols = new Stack<Symbol<N,T>>();
 
-            foreach(MacroToken<T> E in sorgente){
+            foreach(MacroToken<T> E in source){
                 Symbol<N, T> input = new Symbol<N,T>(E.symbol);
                 input.setArguments(E.arg,E.extremes);
-                while(prelevaDallaTabella(stati.Peek(),E.symbol).execute(stati, simboli, goToTable, input));
+                while(pickFromTable(states.Peek(),E.symbol).execute(states, symbols, goToTable, input));
             }
 
-            while(prelevaUltimo(stati.Peek()).executeLast(stati, simboli, goToTable));
-            object ritorno = simboli.Peek().arg;
-            return ritorno is Wrp wrp?wrp.get():ritorno;
+            while(pickLast(states.Peek()).executeLast(states, symbols, goToTable));
+            object obj = symbols.Peek().arg;
+            return obj is Wrp wrp?wrp.get():obj;
         }
 
 
@@ -557,6 +538,9 @@ namespace AgnostosCompilators{
             this.extremes = extremes;
         }
     }
+    public class LexicalErrorException:Exception{
+        public LexicalErrorException(string s):base(s){}
+    }
     public class SyntaxErrorException:Exception{
         public SyntaxErrorException(string s):base(s){}
     }
@@ -567,7 +551,7 @@ namespace AgnostosCompilators{
     public class ItemLrEndedException : Exception{
         public ItemLrEndedException(){}
     }
-    public class Conflict : Exception{
-        public Conflict(string s):base(s){}
+    public class ConflictException : Exception{
+        public ConflictException(string s):base(s){}
     }
 }

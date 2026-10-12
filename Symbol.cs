@@ -1,7 +1,7 @@
 using System;
 
 
-namespace AgnostosCompilators{
+namespace AgnostosCompilator{
     
     internal struct Symbol<N,T>: IEquatable<Symbol<N,T>> where N:Enum where T:Enum{
         private object _return;

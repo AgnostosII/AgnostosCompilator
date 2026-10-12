@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 
 
-namespace AgnostosCompilators{
+namespace AgnostosCompilator{
     internal abstract class Action<N,T>where N:Enum where T:Enum{
         internal abstract bool execute(Stack<int> states,Stack<Symbol<N,T>> symbols,Dictionary<Symbol<N,T>, int>[] goToTable,Symbol<N,T> S);//last argument is a terminal
         internal abstract bool executeLast(Stack<int> states, Stack<Symbol<N, T>> symbols, Dictionary<Symbol<N, T>, int>[] goToTable);
@@ -21,7 +21,7 @@ namespace AgnostosCompilators{
             return false;
         }
         internal override bool executeLast(Stack<int> states, Stack<Symbol<N, T>> symbols, Dictionary<Symbol<N, T>, int>[] goToTable){
-            throw new SyntaxErrorException("there are still symbols left to read");
+            throw new SyntaxErrorException("There are still symbols left to read");
         }
         public override bool Equals(object obj) => obj is Shift<N,T> other && _state == other._state;
         public override int GetHashCode() => _state.GetHashCode();
@@ -51,7 +51,7 @@ namespace AgnostosCompilators{
     internal class Accept<N,T>:Action<N,T>where N:Enum where T:Enum{
         public override string ToString() => "A";
         internal override bool execute(Stack<int> states,Stack<Symbol<N,T>> symbols,Dictionary<Symbol<N,T>, int>[] goToTable,Symbol<N,T> S){
-            throw new SyntaxErrorException("Expected end");
+            throw new SyntaxErrorException("Unexpected end");
         }
         internal override bool executeLast(Stack<int> states,Stack<Symbol<N,T>> symbols,Dictionary<Symbol<N,T>, int>[] goToTable){
             return false;

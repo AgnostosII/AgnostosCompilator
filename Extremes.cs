@@ -4,7 +4,7 @@ using System;
 
 
 
-namespace AgnostosCompilators{
+namespace AgnostosCompilator{
     public readonly struct Extremes{
         public readonly int start;
         public readonly int end;

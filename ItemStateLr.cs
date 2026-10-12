@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace AgnostosCompilators{
+namespace AgnostosCompilator{
     internal class itemStateLr<N,T>where N:Enum where T:Enum{
         private ISet<ItemLr<N,T>> kernel;
         private ISet<ItemLr<N,T>> allItem;
-        private ISet<ItemLr<N, T>> _terminalItem;
+        private ISet<ItemLr<N, T>> _terminatedItems;
         private ISet<Symbol<N,T>> _validSymbols; internal IEnumerable<Symbol<N,T>> validSymbols => _validSymbols;
 
         internal Dictionary<Symbol<N,T>,itemStateLr<N,T>> transictions = new Dictionary<Symbol<N, T>, itemStateLr<N, T>>();
@@ -41,18 +41,13 @@ namespace AgnostosCompilators{
             return !a.Equals(b);
         }
         public override bool Equals(object obj){
-            if(obj is itemStateLr<N,T> other){
-                return kernel.SetEquals(other.kernel);
-            }
-            if(obj is IEnumerable<ItemLr<N,T>> other2){
-                return kernel.SetEquals(other2);
-            }
+            if(obj is itemStateLr<N,T> other) return kernel.SetEquals(other.kernel);
+            if(obj is IEnumerable<ItemLr<N,T>> other2) return kernel.SetEquals(other2);
             return false;
         }
         public override int GetHashCode(){
             int hash = 0;
             foreach(ItemLr<N,T> item in kernel) hash = hash * 31 + item.GetHashCode();
-
             return hash;
         }
         internal bool equalsIfLr0(itemStateLr<N,T> altro) => kernelLr0.SetEquals(altro.kernelLr0);
@@ -117,10 +112,10 @@ namespace AgnostosCompilators{
                 }
             }
             _validSymbols = new HashSet<Symbol<N,T>>(); //array dei simboli da cui può partire una transizione in un altro stato
-            _terminalItem = new HashSet<ItemLr<N, T>>();
+            _terminatedItems = new HashSet<ItemLr<N, T>>();
             foreach(ItemLr<N,T> I in allItem){ //verifica quali item sono stati completati per riportare il reduce
                 if(I.ended){
-                    _terminalItem.Add(I);
+                    _terminatedItems.Add(I);
                 }else{
                     _validSymbols.Add(I.getSymbol());
                 }
@@ -128,26 +123,23 @@ namespace AgnostosCompilators{
         }
         internal itemStateLr(
             ItemLr<N,T> kernel,
-            int indiceStato,
+            int stateIndex,
             Parser<N,T> parser
         ):this(
             new HashSet<ItemLr<N,T>>(new ItemLr<N,T>[]{kernel}),
-            indiceStato,
+            stateIndex,
             parser
         ){}
         
-        internal IEnumerable<ItemLr<N,T>> itemTerminati{get{
-            return _terminalItem;
-        }}
+        internal IEnumerable<ItemLr<N,T>> terminatedItems => _terminatedItems;
+
         
-        internal ISet<ItemLr<N,T>> itemPassati(Symbol<N,T> S){
-            ISet<ItemLr<N,T>> ritorno = new HashSet<ItemLr<N,T>>();
+        internal ISet<ItemLr<N,T>> getKernel(Symbol<N,T> S){
+            ISet<ItemLr<N,T>> kernel = new HashSet<ItemLr<N,T>>();
             foreach(ItemLr<N,T> I in allItem){
-                if( (!I.ended) && I.getSymbol().Equals(S) ){
-                    ritorno.Add(I.next());
-                }
+                if( (!I.ended) && I.getSymbol().Equals(S) ) kernel.Add(I.next());
             }
-            return ritorno;
+            return kernel;
         }
     }
 }

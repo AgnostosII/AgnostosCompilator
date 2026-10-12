@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 
 
-namespace AgnostosCompilators{
+namespace AgnostosCompilator{
     public class ControlledList<T>:IEnumerable<T>{
         private readonly List<T> seen;
         private readonly Stack<T> toVerify;

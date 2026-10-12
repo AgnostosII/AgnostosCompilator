@@ -4,23 +4,32 @@ using System.Collections.Generic;
 
 
 
-namespace AgnostosCompilators{
+namespace AgnostosCompilator{
     public class Wrp{
-        private readonly object o;
+        private readonly object obj;
         public readonly Extremes extremes;
         public int l => extremes.start;
         public int r => extremes.end;
-        internal Wrp(object o,Extremes extremes){
-            this.o = o;
+        public int size => extremes.length;
+        internal Wrp(object obj,Extremes extremes){
+            this.obj = obj;
             this.extremes = extremes;
         }
-        internal object get() => o;
+        internal object get() => obj;
         public T get<T>(){
-            if(o==null) return default;
-            if(o is T obj) return obj;
-            throw new ArgumentException("tipo non valido, mi aspettavo "+o.GetType().ToString()+" e invece ho trovato "+typeof(T).ToString());
+            if(this.obj==null) return default;
+            if(this.obj is T obj) return obj;
+            throw new ArgumentException($"Invalid type: expected {this.obj.GetType()}, found {typeof(T)}");
         }
-        public bool isNull => o==null;
+        public bool tryGet<T>(out T value){
+            if(this.obj is T obj){
+                value = obj;
+                return true;
+            }
+            value = default;
+            return false;
+        }
+        public bool isNull => obj==null;
     }
     public abstract class AbstractGrammarRule<N,T>where N:Enum where T:Enum{
         internal abstract int symbolNumber{ get; }
@@ -149,12 +158,12 @@ namespace AgnostosCompilators{
         
         
         internal object apply(Stack<int> states,Stack<Symbol<N,T>> symbols,out Extremes extremes){
-            if(production.Length>symbols.Count) throw new SyntaxErrorException("regola mal applicata");
+            if(production.Length>symbols.Count) throw new SyntaxErrorException("Bad applied rule");
             Wrp[] ritorno = new Wrp[production.Length];
             extremes = Extremes.nullExtremes;
             for(int i=production.Length-1;i>=0;--i){
                 Symbol<N,T> S = symbols.Pop();
-                if( !production[i].Equals(S) ) throw new SyntaxErrorException("regola mal applicata");
+                if( !production[i].Equals(S) ) throw new SyntaxErrorException("Bad applied rule");
                 states.Pop();
                 ritorno[i] = new Wrp( S.arg is Wrp wrp?wrp.get():S.arg , S.extremes );
                 extremes = Extremes.union(extremes,S.extremes);

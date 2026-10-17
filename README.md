@@ -15,6 +15,8 @@ Originally developed for use in a Unity project, the library was designed to rem
 - .NET Standard 2.0
 
 ## Quick Start
+You can download the library as a dll file with this link https://github.com/AgnostosII/AgnostosCompilator/releases/tag/v1.0.0
+
 Here there's a quick example on how to make a compiler:
 ```C#
 using AgnostosCompilator;
@@ -43,7 +45,7 @@ public class Program{
         //lexical analysis
         IEnumerable<MacroToken<Token>> tokenList = lexer.parse(example);
         //parsing
-        int? result = parser.parse(tokenList);
+        int? result = parser.parse(tokenList) as int?;
         //print result
         Console.WriteLine($"There are {result} repetitions");
     }
